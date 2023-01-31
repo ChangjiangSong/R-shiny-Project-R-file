@@ -1,6 +1,6 @@
 # R-shiny-Project-R-file
 ## Notice: 
-This is the R-code for the R-shiny App dashboard design. Data is too large to upload on Github. Please connect with me ff you need the data.
+This is the R-code for the R-shiny App dashboard design. Data is too large to upload on Github. Please contact with me if you need the data.
 Email: songchangjiang123@gmail.com
 
 ## The Project description:
