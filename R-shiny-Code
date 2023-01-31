@@ -1,0 +1,450 @@
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    http://shiny.rstudio.com/
+#
+library(wordcloud2)
+library(tidyverse)
+library(shinythemes)
+library(shiny)
+library(wordcloud)
+library(tidyverse)
+library(wordcloud)
+library(readr)
+library(factoextra)
+library(cluster)
+library(NbClust)
+library(tidytext)
+library(cluster)
+library(textmineR)
+#Required Codes
+d3<-read_csv("dat_3.csv")
+d4<-read_csv("dat_4.csv")
+d5<-read_csv("dat_5.csv")
+d6<-read_csv("dat_6.csv")
+
+data_scaled<-scale(d4%>%
+                     select(ADJ_ratio:SYM_ratio,total_words_ratio))
+# K means  elbow
+k.max = 10
+data = data_scaled
+wss = sapply(1:k.max,
+             function(k){kmeans(data,k,nstart=10)$tot.withinss})
+set.seed(50)
+k3 <- kmeans(data_scaled, centers = 3, nstart = 25)
+d4<-tibble(d4,cluster = k3$cluster)
+
+#5.) Topic profile within each class
+d4_to_plot<-d4%>%
+  group_by(cluster)%>%
+  summarize(across(X1:X15,c(mean)))%>%
+  gather(X1_1:X15_1,key = "Topic",value = "Probability")
+
+clusters_codes <-d4%>%
+  group_by(cluster)%>%
+  summarize(across(X1:X15,c(mean)))%>%
+  gather(X1_1:X15_1,key = "Topic",value = "Probability")%>%
+  select(cluster)%>%
+  distinct()
+
+course_codes<-d4%>%
+  separate(id,c("Code","Number"),sep="_")%>%
+  select(Code)%>%
+  distinct()
+to_filter<-course_codes$Code[2]
+course_codes<-rbind(course_codes, "All Course")
+#class(Gram_list)
+Topic_list<- c(1:15)
+
+topic_table<-d4%>%
+  gather("column","value",X1:X15)%>%
+  group_by(id,word)%>%
+  mutate(m_val = max(value))%>%
+  ungroup()%>%
+  mutate(is_max = ifelse(value == m_val,sample(column),NA))%>%
+  drop_na()%>%
+  group_by(id,word)%>%
+  mutate(topic = sample(column,1))%>%
+  ungroup()%>%
+  select(id,topic)%>%
+  distinct()
+
+#Get the topic number attached to each table:
+d4<-d4%>%
+  left_join(topic_table,
+            by = c("id")
+  )
+
+d5<-d5%>%
+  left_join(topic_table,
+            by = c("id")
+  )
+
+d6<-d6%>%
+  left_join(topic_table,
+            by = c("id")
+  )
+clusters_codes <-d4%>%
+  group_by(cluster)%>%
+  summarize(across(X1:X15,c(mean)))%>%
+  gather(X1_1:X15_1,key = "Topic",value = "Probability")%>%
+  select(cluster)%>%
+  distinct()
+
+course_codes<-d4%>%
+  separate(id,c("Code","Number"),sep="_")%>%
+  select(Code)%>%
+  distinct()
+to_filter<-course_codes$Code[2]
+course_codes<-rbind(course_codes, "All Course")
+#class(Gram_list)
+Topic_list<- c(1:15)
+
+d3<-d3%>%
+  separate(term,c("term","topic_2"))%>%
+  select(topic,term,beta,diff_ratio)
+
+topic_data<-d3%>%
+  group_by(topic)%>%
+  slice_max(beta,n=15)%>%
+  ungroup()%>%
+  mutate(term = reorder_within(term,beta, topic))
+
+
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+    theme = shinytheme('slate'),
+    themeSelector(),
+    # Application title
+    titlePanel("CPS Projects-Group 12"),
+    
+    navlistPanel(
+      "Project Introduction",
+      tabPanel("Description",h2('Project Description'),
+      h4('The College of Professional Studies needs to analyze our curriculum to support the efforts of the college 
+      and better understand the nuances of our courses and programs. There is a need to identify key words 
+      and phrases within course descriptions, course outcomes, course skills, and create links between them 
+      based on similar language. Specifically, examining themes related to learning domains at the college, 
+      professional outcomes, hard and soft (e.g. power) 
+      skills, technology, innovation, and social justice and 
+      equity work. The project will deliver analysis of professional skills (e.g. ‘competencies’) identified as essential for 
+      graduates of our programs and non-credit offerings in order to identify areas of overlap, as well as 
+      potential gaps. This will help the college prioritize crucial skills that learners need to obtain and will help 
+      us seek out where we should adjust the curriculum and future academic program offerings.'),
+      h4('Phase 1 Tasks for Spring 2022 Semester (This will be completed by our Group 12) '),
+      h5('1. Create a dashboard that can display different aspects of the language that is used in the course descriptions. '),
+      h5('2. Find themes/clusters/topics  by domain using the resulting dashboard ')
+      ),
+      tabPanel(
+      "The CPS Project Deliverables ",
+      h2('The CPS Project Deliverables '),
+      h4('Natural language processing will be used along with and data visualization techniques to explore and 
+      understand the current curriculum. The significant visualization will include the Bar chart of the words with top frequency to each course, 
+      word cloud for each Topics, the bar chart for showing the topics included in each cluster which are clustered by K-Mean method,
+      and the relevant graphs such as box plot to reflect sentiment of each cluster.' ), 
+      h4(' In addtion, the following questions will be addressed by the dashboard to support the college:'),
+        h4('1.What are some themes or clusters within the course description, course outcomes, and skills?' ),
+        h4('2.What programs and courses address:' ),
+          h5('a.Professional skills (potentially listed in professional jobsites); '), 
+          h5('b. Hard and soft (e.g. power) skills; '),
+          h5('c. Technology and innovation; '),
+          h5('d. Social justice?'),
+          h5('e. Diversity, equity, and inclusion?')),
+      "Group Numbers _12",
+      tabPanel(
+       "Group Numbers", h2('Group Numbers'),h3("Changjiang Song"),h3("LinTao Wang"),h3("Niti Harit Bhuta"),h3("Huilin Qi")
+      ),
+      
+      "Themes of entire dataset of course descriptions",
+      tabPanel(
+        "The most Frequent Words Pattern for each Course",
+        selectInput("course_code","Course Code",course_codes$Code),
+        numericInput("top_n","Top Number of Words",value = 5),
+        plotOutput("word_cloud"),
+        tableOutput("table"),
+        textOutput("test"),
+        h3('Summary'),
+        h4('We try to Identify themes that are common across the entire data set of course descriptions by the frequency of words which in the gram1, gram2 and gram3.
+          In this dashboard you can select one course code or check all courses and change the number of the top to check the frequency of words.
+          In perspective of all course in this data set, the top 10 word here are datum, student, offer, analytics, introduce, opportunity, analysis, technique, management, decision. 
+          So, we can summarize the themes of the data which like some courses about helping students to analyze data through some technical analysis means in order to help students better grasp the employment opportunities, and teach students how to get offer and how to introduce themselves. 
+          The final goal is to enable students to better grasp opportunities and learn scientific management and analysis.')),
+      
+      "Characterize and elaborate upon each 15 Topics ",
+      tabPanel(
+        "Wordscloud",h3('The most frequent words in the Topics'),
+        
+        selectInput("TopicNumber",
+                    "Topic_number",
+                    Topic_list),
+        
+        sliderInput("Maxwords",
+                    "Maxwords:",
+                    min = 1,
+                    max = 200,
+                    value = 10),
+        
+        plotOutput("distPlot"),
+        plotOutput('distPlot1'),
+        plotOutput('distPlot3')),
+      tabPanel(
+        "Topics Explaination",
+        h3('All the Bar charts of the top frequent words for each Topics'),
+        plotOutput("distPlot8"),
+        h3("Identify and elaborate upon the meaning of each of the distinct 15 topics"),
+        h4("To identify and elaborate upon the meaning of each of the distinct 15 topics, 
+           we plot basic topic-term plots for each topic. 
+           We plot the terms for each topic in ascending order of its frequency. 
+           Combining with the words clouds for each gram and this basic topic-term plots, this gives us an overview of the terms used most frequently in each topic.
+           Based on these plots, we get some insight into each of the 15 topics:"),
+        h5('a.	Topic 1 consists of the terms financial, legal, issue, policy, ethical so we can label this topic as ‘Legal’.'),
+        h5('b.	Topic 2 consists of the terms design, network, computer, digital, web so we can label this topic as ‘Computer’.'),
+        h5('c.	Topic 3 consists of the terms device, medical, drug, clinical, regulatory so we can label this topic as ‘Medical’.'),
+        h5('d.	Topic 4 consists of the terms learn, leadership, practice, develop, explore so we can label this topic as ‘Leadership’.'),
+        h5('e.	Topic 5 consists of the terms policy, community, social, intelligence, strategy so we can label this topic as ‘Social’.'),
+        h5('f.	Topic 6 consists of the terms write, language, skill, english, practice so we can label this topic as ‘Language’.'),
+        h5('g.	Topic 7 consists of the terms analysis, analytics, model, application, database so we can label this topic as ‘Analytics’.'),
+        h5('h.	Topic 8 consists of the terms research, project, develop, review, thesis so we can label this topic as ‘Research’.'),
+        h5('i.	Topic 9 consists of the terms limit, repeat, elective, special, offer so we can label this topic as ‘Elective’.'),
+        h5('j.	Topic 10 consists of the terms management, plan, manage, project, system so we can label this topic as ‘Management’.'),
+        h5('k.	Topic 11 consists of the terms engineer, analysis, application, concept, function so we can label this topic as ‘Engineer’.'),
+        h5('l.	Topic 12 consists of the terms research, focus, produce, field, evaluation so we can label this topic as ‘Produce research’.'),
+        h5('m.	Topic 13 consists of the terms health, food, nutrition, disease, safety so we can label this topic as ‘Food safety’.'),
+        h5('n.	Topic 14 consists of the terms international, political, economic, world, history so we can label this topic as ‘World history’.'),
+        h5('o.	Topic 15 consists of the terms market, strategy, communication, business, organization so we can label this topic as ‘Business strategy’.')
+      ),
+      "Identify groups or clusters of courses(Classification System)",
+      tabPanel(
+        "Unsupervsing Machine Learning Model for Clustring",
+        h4('principal component analytics'),
+        plotOutput('distPlot9'),
+        h4('Hierarchical Clustering'),
+        plotOutput('distPlot10'),
+        h4('K-Means'),
+        plotOutput('distPlot7'),
+        h4('Summary for selecting best clustering methods'),
+        h4('In this part, we’ve tried 3 unsupervising machine learning models which are principal component analytics, and K-means. 
+           However, because PCA method can only explained 20% of variance in two dimensions though it can divide into 3 clusters, it would not be a good choice which responsible to cluster the courses.
+           Comparing with the dendrogram of hierarchical, we finally choose to use K-means to do the clustering task. 
+           By looking at the elbow graph, we think that 3 clusters should best fit to the data.')),
+      
+      tabPanel(
+        "Topic in each Clusters",
+        h4('Topics in each Clusters'),
+        
+        sliderInput("Top_n",
+                    "Top topics:",
+                    min = 2,
+                    max = 15,
+                    value = 5),
+        selectInput("Cluster",
+                    "Clusters",
+                    clusters_codes$cluster),
+        plotOutput("distPlot2")),
+      tabPanel(
+        "Clusters explaination",
+        h5('Analysis for each Clusters'),
+        
+        sliderInput("Range_sentiment",
+                    "Range of sentiment:",
+                    min = -0.3,
+                    max = 0.3,
+                    value = c(0.19,-0.18),
+                    step = 0.01),
+        sliderInput("Top_emotions",
+                    "Top_emotions:",
+                    min = 2,
+                    max = 8,
+                    value = 5),
+        selectInput("Cluster2",
+                    "Cluster2",
+                    clusters_codes$cluster),
+        plotOutput("distPlot4"),
+        plotOutput("distPlot5"),
+        h3('Summary'),
+        h4('For the cluster analysis part, our goal is analyze the characteristics of each cluster from the perspective of topic and sentiment. The first slider can change the interval of the box plot y value, we can use it to check its dispersion, we can determine the positive and negative emotions, which can narrow the range of choices. The second slider can show eight emotions. At the same time, the emotion with the highest score will be displayed first. The third is to look at the sentiment scores of three different clusters.')
+        ,h4('For cluster 3, we can clearly see that its main emotional state is anticipation. Through the previous analysis, we know that cluster 3 mainly describes topic 9, so we can determine that the elective topic has anticipation emotions. At the same time, there are related terms such as credit and limit. Through the characteristics of these emotions and topics, we believe that this cluster is about the topics of diversity, fairness and inclusiveness in the field of university study. '),
+        h4('There is little difference between cluster 1 and cluster 2 in emotional status, and both scores on trust and anticipation are much higher than other emotions. '),
+        h4('The first three topics involved in cluster 2 are Leadership, Research and Business strategy. This cluster also has positive emotions. So We can classify the characteristics of this cluster as an area to improve our Hard and soft skills.'),
+        h4('In cluster 1, if we select the top three topics with the highest probability and analyze them in combination with sentiment. Which is analytics, engineer and management. Therefore, it can be determined that the theme of cluster 1 is about improving professional skills and knowledge to lay the foundation for future work. ')),
+      "The Project Summary",
+      tabPanel(
+        "Summary", h2('Summary'),
+        h4('The dashboard made by our group mainly analyzes and displays the classification results of courses in the data. First, we summarize the theme of all the data by the frequency of words, and we can search for high-frequency words according to the course code. Then, through the method of word cloud, the specific content and meaning of 15 topics are analyzed and summarized. It also addresses the professional skills, learning outcomes and course descriptions represented by these different topic of courses. Finally, we also classified the data through the K-means model, observed and analyzed the classification results of different topics in the new model, and analyzed their sentiment and emotion words.')
+      )
+    ))
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+
+    output$distPlot <- renderPlot({
+      
+      topic_num<-paste0("X",input$TopicNumber)
+      
+      d4_temp<-d4%>%
+        filter(topic == topic_num)%>%
+        count(word)%>%
+        arrange(-n)%>%
+        slice_max(n,n=200)
+      
+      wordcloud(words = d4_temp$word, freq =d4_temp$n, min.freq = 1,
+                max.words=input$Maxwords, random.order=FALSE, rot.per=0.35, 
+                colors=brewer.pal(8, "Dark2"))
+    })
+    
+    output$distPlot1 <- renderPlot({
+      
+      topic_num<-paste0("X",input$TopicNumber)
+      
+      d5_temp<-d5%>%
+        filter(topic == topic_num)%>%
+        count(paste0(gram1," ",gram2))%>%
+        rename('word' = 'paste0(gram1, " ", gram2)')%>%
+        arrange(-n)%>%
+        slice_max(n,n=200)
+      
+      wordcloud(words = d5_temp$word, freq =d5_temp$n, min.freq = 1,
+                max.words=input$Maxwords, random.order=FALSE, rot.per=0.35, 
+                colors=brewer.pal(8, "Dark2"))
+      
+    })
+    output$distPlot3 <- renderPlot({
+      
+      topic_num<-paste0("X",input$TopicNumber)
+      
+      d6_temp<-d6%>%
+        filter(topic == topic_num)%>%
+        count(paste0(gram1," ",gram2," ",gram3))%>%
+        rename('word' = 'paste0(gram1, " ", gram2, " ", gram3)')%>%
+        arrange(-n)%>%
+        slice_max(n,n=200)
+      wordcloud(words = d6_temp$word, freq =d6_temp$n, min.freq = 1,
+                max.words=input$Maxwords, random.order=FALSE, rot.per=0.35, 
+                colors=brewer.pal(8, "Dark2"))
+    })
+    
+    output$distPlot2 <- renderPlot({
+      
+      d4_to_plot<-d4%>%
+        group_by(cluster)%>%
+        summarize(across(X1:X15,c(mean)))%>%
+        gather(X1_1:X15_1,key = "Topic",value = "Probability")%>%
+        filter(cluster == input$Cluster)%>%
+        arrange(desc(Probability))%>%
+        slice(1:input$Top_n)
+      
+      ggplot(d4_to_plot,aes(x= reorder(Topic,Probability), y=Probability,  fill= Topic))+
+        geom_col(position = position_dodge2(preserve = "total"))+
+        geom_col()+
+        xlab('Topics')+
+        ggtitle(input$Topic_Clusters)
+    })
+    output$distPlot4 <- renderPlot({  
+      
+      ggplot(d4, aes(x=factor(cluster),y= sentiment),fill = cluster)+
+        geom_boxplot() + 
+        labs(x = "cluster")+
+        stat_summary(fun.y=mean, geom="point", shape=20, size=14, color="blue", fill="red") +
+        ylim(input$Range_sentiment)+
+        ggtitle('Box plot of sentiment for each clusters')
+    })
+    
+    output$distPlot5 <- renderPlot({
+      
+      d4_to_plot2<-d4%>%
+        group_by(cluster)%>%
+        summarize(across(anger: trust,c(mean)))%>%
+        gather(anger_1:trust_1,key = "emotion",value = "Score")%>%
+        filter(cluster == input$Cluster2)%>%
+        arrange(desc(Score))%>%
+        slice(1:input$Top_emotions)
+      
+      ggplot(d4_to_plot2,aes(x=factor(cluster),y=Score, fill = emotion))+
+        geom_col(position = position_dodge2(preserve = "total"))+
+        xlab('Emotion')+
+        ggtitle(input$Topic_Clusters_Emotions)
+    })
+    
+    output$word_cloud <- renderPlot({
+      to_filter<-course_codes$Code[2]
+      if(input$course_code == "All Course"){
+        d4_filter<-d4%>%
+          tidyr::separate(id,c("Code","Number"),sep="_")%>%
+          dplyr::filter(Code == to_filter)
+      } else {
+        d4_filter<-d4%>%
+          tidyr::separate(id,c("Code","Number"),sep="_")%>%
+          dplyr::filter(Code == input$course_code)
+      }
+      
+      
+      to_plot<-d4_filter%>%
+        count(word)%>%
+        arrange(-n)%>%
+        slice_max(n,n=input$top_n)
+      ggplot(to_plot,aes(y=reorder(word,n,function(x) x),x=n))+
+        geom_col(fill = blues9[4],col = "black")
+    })
+    
+    output$table <- renderTable({
+      to_filter<-course_codes$Code[2]
+      if(input$course_code == "All Course"){
+        d4_filter<-d4%>%
+          tidyr::separate(id,c("Code","Number"),sep="_")%>%
+          dplyr::filter(Code == to_filter)
+      } else {
+        d4_filter<-d4%>%
+          tidyr::separate(id,c("Code","Number"),sep="_")%>%
+          dplyr::filter(Code == input$course_code)
+      }
+      
+      to_plot<-d4_filter%>%
+        count(word)%>%
+        arrange(-n)%>%
+        slice_max(n,n=input$top_n)
+      
+      to_plot})
+    
+    output$distPlot7 <- renderPlot({
+      plot(1:k.max, wss,
+           type='b', pch=19, frame=FALSE,
+           xlab = 'Number of cluster K',
+           ylab = "Total within-clusters sum of squares")
+      abline(v=3, lty=2)
+    })
+    
+    output$distPlot8 <- renderPlot({
+      
+      ggplot(topic_data,aes(y = term, x = beta))+
+        geom_col((aes(y = term,fill  = topic)))+
+        scale_y_reordered()+
+        facet_wrap(~topic,scales="free_y")
+      
+    })
+    
+    output$distPlot10<- renderPlot({
+      
+      d3_2 <- xtabs( beta ~  topic + term, data = d3[,1:3])
+      dist_matrix <-  as.dist(CalcHellingerDist( d3_2 ))
+      h <- hclust(dist_matrix, "ward.D")
+      h$labels <- paste0("Topic",1:15)
+      plot(h, xlab = "")
+      rect.hclust(h, 3)
+      
+    })
+    
+    output$distPlot9<- renderPlot({
+      d3_2 <- xtabs( beta ~  topic + term, data = d3[,1:3])
+      set.seed(1)
+      pca <- prcomp(d3_2)
+      dt <- scale(pca$x[,1:15])
+      k3 <- kmeans(dt,3)
+      fviz_cluster(k3, data = dt)
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
